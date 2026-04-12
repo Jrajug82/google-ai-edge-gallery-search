@@ -4,36 +4,50 @@ async function performSearch() {
   const query = process.argv.slice(2).join(' ');
   if (!query) return;
 
-  // DDG likes lower case sometimes, and no_redirect is key
+  // Formatting for the specific Instant Answer API
   const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
 
   try {
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      method: 'GET',
+      headers: {
+        // This User-Agent is the most critical part to avoid the 403 error
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://duckduckgo.com/'
+      }
     });
+
+    if (!response.ok) {
+      process.stdout.write(`DDG Error: ${response.status} - Try using your SearXNG skill instead.`);
+      return;
+    }
+
     const data = await response.json();
+    let output = "";
 
-    let result = "";
-
-    // 1. Try the direct Wikipedia-style abstract
+    // Priority 1: Abstract (Wikipedia style)
     if (data.AbstractText) {
-      result = data.AbstractText;
+      output = `[Source: ${data.AbstractSource}]\n${data.AbstractText}`;
     } 
-    // 2. Fallback: Check 'RelatedTopics' (This is likely where 'Telangana' is hiding)
+    // Priority 2: Related Topics (Snippets)
     else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      // Find the first topic that has text
-      const firstTopic = data.RelatedTopics.find(t => t.Text);
-      result = firstTopic ? firstTopic.Text : "";
+      output = data.RelatedTopics
+        .filter(t => t.Text)
+        .slice(0, 3)
+        .map((t, i) => `${i + 1}. ${t.Text}`)
+        .join("\n\n");
     }
 
-    if (result) {
-      process.stdout.write(result);
+    if (!output) {
+      process.stdout.write("DuckDuckGo has no Instant Answer for this. Try a broader term.");
     } else {
-      // This helps you debug—if you see this message, DDG is empty
-      process.stdout.write("API returned empty for: " + query);
+      process.stdout.write(output);
     }
+
   } catch (error) {
-    process.stdout.write("Diagnostic: Network error.");
+    process.stdout.write("Diagnostic: Network timeout or SSL issue in the tool sandbox.");
   }
 }
 
