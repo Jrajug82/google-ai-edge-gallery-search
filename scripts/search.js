@@ -51,4 +51,4 @@ async function performSearch() {
   }
 }
 
-performSearch();
+//performSearch();
