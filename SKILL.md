@@ -1,25 +1,17 @@
 ---
-name: search
-description: "Search the internet for real-time information, laws, and prices."
+name: web_search
+description: "Search for info on stamp duty, news, and Telangana."
 actions:
   - name: web_search
-    description: "Performs a live web search using DuckDuckGo"
+    description: "Execute search"
     parameters:
       - name: query
         type: string
-        description: "The search keywords"
+        description: "Search keywords"
         required: true
 ---
 
-# Web Search Skill
-
-## Instructions
-1. When asked about facts in 2026, property laws, or local prices, identify search keywords.
-2. Execute the `web_search` action.
-3. **Wait** for the search result to return from the script before answering.
-4. If the result is empty or says "No results," try one more search with broader terms.
-5. Present the found data or snippets to the user.
-
-## Constraints
-- Max 2 search attempts per turn.
-- Cite the source if 'Source:' is provided in the output.
+# Instructions for Gemma
+1. **FORCE TRIGGER:** If the user mentions "stamp duty" or "news", DO NOT ask clarifying questions. Call `web_search` immediately.
+2. If the user is vague (e.g., "stamp duty"), use the query: "Telangana stamp duty registration charges 2026".
+3. Always summarize the results and provide the source if available.
