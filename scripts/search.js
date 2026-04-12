@@ -2,62 +2,31 @@
 
 async function performSearch() {
   const query = process.argv.slice(2).join(' ');
-  if (!query) {
-    process.stdout.write("No query provided.");
-    return;
-  }
+  if (!query) return;
 
-  // Handle hallucinations
-  const cleanQuery = query.replace(/\d{5,}/g, "2026");
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_redirect=1`;
+  // Use the simplest possible DDG URL
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
 
   try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
     const response = await fetch(url, {
       method: 'GET',
-      signal: controller.signal,
-      headers: {
-        // Essential: This tells DDG you are a browser, not a bot
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
-        'Accept': 'application/json'
-      }
+      // Some sandboxes require this to be explicitly set to 'cors' or 'no-cors'
+      mode: 'cors' 
     });
 
-    clearTimeout(id);
+    const text = await response.text(); // Get raw text first to avoid JSON parse errors
+    const data = JSON.parse(text);
 
-    if (!response.ok) {
-      process.stdout.write(`HTTP Error ${response.status}: DDG blocked the request.`);
-      return;
-    }
-
-    const data = await response.json();
-    let output = "";
-
-    // Exact mapping from your browser screenshot (Image 9)
     if (data.AbstractText) {
-      output = `[Source: ${data.AbstractSource}]\n${data.AbstractText}`;
+      process.stdout.write(data.AbstractText);
     } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      output = data.RelatedTopics
-        .filter(t => t.Text)
-        .slice(0, 3)
-        .map((t, i) => `${i + 1}. ${t.Text}`)
-        .join("\n\n");
-    }
-
-    if (!output) {
-      process.stdout.write("DuckDuckGo has no Instant Answer for this. Try your SearXNG tool.");
+      process.stdout.write(data.RelatedTopics[0].Text);
     } else {
-      process.stdout.write(output);
+      process.stdout.write("No summary found for " + query);
     }
-
   } catch (error) {
-    if (error.name === 'AbortError') {
-      process.stdout.write("Search failed: Connection timed out.");
-    } else {
-      process.stdout.write("Search failed: Network error or CORS block.");
-    }
+    // This will help us see the REAL error in the logs
+    process.stdout.write("Diagnostic: " + error.message);
   }
 }
 
