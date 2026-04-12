@@ -2,43 +2,62 @@
 
 async function performSearch() {
   const query = process.argv.slice(2).join(' ');
-  if (!query) return;
+  if (!query) {
+    process.stdout.write("No query provided.");
+    return;
+  }
 
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
+  // Handle hallucinations
+  const cleanQuery = query.replace(/\d{5,}/g, "2026");
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_redirect=1`;
 
   try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     const response = await fetch(url, {
       method: 'GET',
+      signal: controller.signal,
       headers: {
-        // This is the "Magic" header that stops the 403/Search Failed error
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        // Essential: This tells DDG you are a browser, not a bot
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
         'Accept': 'application/json'
       }
     });
 
+    clearTimeout(id);
+
     if (!response.ok) {
-      process.stdout.write(`Error: DDG returned status ${response.status}`);
+      process.stdout.write(`HTTP Error ${response.status}: DDG blocked the request.`);
       return;
     }
 
     const data = await response.json();
+    let output = "";
 
-    // Matching the exact keys seen in your browser screenshot (Image 9)
+    // Exact mapping from your browser screenshot (Image 9)
     if (data.AbstractText) {
-      process.stdout.write(`[Source: ${data.AbstractSource}]\n${data.AbstractText}`);
+      output = `[Source: ${data.AbstractSource}]\n${data.AbstractText}`;
     } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      const snippets = data.RelatedTopics
+      output = data.RelatedTopics
         .filter(t => t.Text)
         .slice(0, 3)
         .map((t, i) => `${i + 1}. ${t.Text}`)
         .join("\n\n");
-      process.stdout.write(snippets);
+    }
+
+    if (!output) {
+      process.stdout.write("DuckDuckGo has no Instant Answer for this. Try your SearXNG tool.");
     } else {
-      process.stdout.write("DuckDuckGo returned an empty result for this specific query.");
+      process.stdout.write(output);
     }
 
   } catch (error) {
-    process.stdout.write("Network Error: Could not reach DuckDuckGo API.");
+    if (error.name === 'AbortError') {
+      process.stdout.write("Search failed: Connection timed out.");
+    } else {
+      process.stdout.write("Search failed: Network error or CORS block.");
+    }
   }
 }
 
