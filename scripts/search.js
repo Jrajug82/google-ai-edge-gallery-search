@@ -4,29 +4,36 @@ async function performSearch() {
   const query = process.argv.slice(2).join(' ');
   if (!query) return;
 
-  // Use the simplest possible DDG URL
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
+  // DDG likes lower case sometimes, and no_redirect is key
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
 
   try {
     const response = await fetch(url, {
-      method: 'GET',
-      // Some sandboxes require this to be explicitly set to 'cors' or 'no-cors'
-      mode: 'cors' 
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     });
+    const data = await response.json();
 
-    const text = await response.text(); // Get raw text first to avoid JSON parse errors
-    const data = JSON.parse(text);
+    let result = "";
 
+    // 1. Try the direct Wikipedia-style abstract
     if (data.AbstractText) {
-      process.stdout.write(data.AbstractText);
-    } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      process.stdout.write(data.RelatedTopics[0].Text);
+      result = data.AbstractText;
+    } 
+    // 2. Fallback: Check 'RelatedTopics' (This is likely where 'Telangana' is hiding)
+    else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      // Find the first topic that has text
+      const firstTopic = data.RelatedTopics.find(t => t.Text);
+      result = firstTopic ? firstTopic.Text : "";
+    }
+
+    if (result) {
+      process.stdout.write(result);
     } else {
-      process.stdout.write("No summary found for " + query);
+      // This helps you debug—if you see this message, DDG is empty
+      process.stdout.write("API returned empty for: " + query);
     }
   } catch (error) {
-    // This will help us see the REAL error in the logs
-    process.stdout.write("Diagnostic: " + error.message);
+    process.stdout.write("Diagnostic: Network error.");
   }
 }
 
