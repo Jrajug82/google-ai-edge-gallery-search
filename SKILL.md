@@ -16,8 +16,11 @@ actions:
 ## Instructions
 1. Use this tool for any questions about current events, laws, or prices in 2026.
 2. Call the `search` action with a specific query.
-3. Wait for the search result to return before answering the user.
-4. If no result is found, state that you cannot find live data.
+3. **CRITICAL:** If the search returns "No results found," try a second search with broader terms (e.g., if "Stamp duty 2026" fails, search for "Telangana property registration rates").
+4. Always double-check the year in your query to ensure it is 2026.
+5. Always double-check the year in your query to ensure it is 2026.
+6. Wait for the search result to return before answering the user.
+7. If no result is found, state that you cannot find live data.
 
 ## Constraints
 - Keep queries under 5 words.
