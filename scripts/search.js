@@ -1,16 +1,8 @@
 #!/usr/bin/env node
 
 async function performSearch() {
-  const args = process.argv.slice(2);
-  let query = args.join(' ');
-  
-  if (!query) {
-    process.stdout.write("Error: No query provided.");
-    return;
-  }
-
-  // Handle year hallucinations
-  query = query.replace(/\d{5,}/g, "2026");
+  const query = process.argv.slice(2).join(' ');
+  if (!query) return;
 
   const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
 
@@ -18,43 +10,35 @@ async function performSearch() {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        // This is the "Magic" header that stops the 403/Search Failed error
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json'
       }
     });
 
     if (!response.ok) {
-      process.stdout.write(`Search failed with status: ${response.status}`);
+      process.stdout.write(`Error: DDG returned status ${response.status}`);
       return;
     }
 
     const data = await response.json();
-    let finalOutput = "";
 
-    // 1. Check for Abstract (Direct Answer)
+    // Matching the exact keys seen in your browser screenshot (Image 9)
     if (data.AbstractText) {
-      finalOutput = `[Source: ${data.AbstractSource}]\n${data.AbstractText}`;
-    } 
-    // 2. Check for Related Topics (List of results)
-    else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      const results = data.RelatedTopics
+      process.stdout.write(`[Source: ${data.AbstractSource}]\n${data.AbstractText}`);
+    } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      const snippets = data.RelatedTopics
         .filter(t => t.Text)
         .slice(0, 3)
         .map((t, i) => `${i + 1}. ${t.Text}`)
         .join("\n\n");
-      finalOutput = results;
-    }
-
-    // 3. Last Resort
-    if (!finalOutput) {
-      process.stdout.write("No specific results found for this query in DuckDuckGo.");
+      process.stdout.write(snippets);
     } else {
-      // Ensure we send a clean string
-      process.stdout.write(String(finalOutput).trim());
+      process.stdout.write("DuckDuckGo returned an empty result for this specific query.");
     }
 
   } catch (error) {
-    process.stdout.write("Error: Connection timeout or Network error.");
+    process.stdout.write("Network Error: Could not reach DuckDuckGo API.");
   }
 }
 
