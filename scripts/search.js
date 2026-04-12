@@ -11,7 +11,7 @@ async function performSearch() {
   // AUTO-FIX: If the model hallucinates the year 02226, 20206, etc.
   query = query.replace(/\d{5}/g, "2026");
 
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
+  const url = `https://api.duckduckgo.com/?q='${encodeURIComponent(query)}'&format=json&no_redirect=1`;
 
   try {
     const controller = new AbortController();
