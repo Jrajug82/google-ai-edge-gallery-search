@@ -5,7 +5,7 @@ description: "Executes a real-time web search for Telangana news, stamp duty, an
 ## Instructions
 
 Call the `run_js` tool with the following exact parameters:
-- script name: index.html
+- script name: ./scripts/index.html
 - data: A JSON string with the following field:
 - text: String. The text to calculate hash for.
 
