@@ -1,49 +1,50 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8">
-</head>
 <body>
 <script>
-async function performSearch(inputData) {
-    let query = "";
-    try {
-        // Handle both JSON string and raw string inputs
-        const parsed = typeof inputData === 'string' ? JSON.parse(inputData) : inputData;
-        query = parsed.query || inputData;
-    } catch (e) {
-        query = inputData;
+async function performSearch(data) {
+  let query;
+  try {
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    query = parsed.query || data;
+  } catch (e) {
+    query = data;
+  }
+
+  // We use a CORS proxy to bypass the mobile sandbox restriction
+  const proxy = "https://corsproxy.io/?";
+  const target = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
+  const url = proxy + encodeURIComponent(target);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) return "Search engine connection blocked.";
+
+    const resultData = await response.json();
+    let output = "";
+
+    // Priority 1: AbstractText (Direct Answer)
+    if (resultData.AbstractText) {
+      output = resultData.AbstractText;
+    } 
+    // Priority 2: Related Topics (Snippets)
+    else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
+      output = resultData.RelatedTopics[0].Text;
     }
 
-    // Use a very simple, fast API endpoint
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
+    return output || "No instant answer found for: " + query;
 
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) return "Search engine is temporarily unavailable.";
-
-        const data = await response.json();
-        
-        // Prioritize AbstractText, then RelatedTopics
-        if (data.AbstractText) {
-            return data.AbstractText;
-        } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-            return data.RelatedTopics[0].Text;
-        }
-        
-        return "No instant summary found for " + query;
-
-    } catch (error) {
-        // If this returns, the mobile sandbox is blocking the HTTPS call
-        return "Network restriction: Please use the local SearXNG skill via Tailscale.";
-    }
+  } catch (error) {
+    return "Network error: The sandbox is still blocking public API calls.";
+  }
 }
 
-// Attach to window for the Gallery app to find
 window.ai_edge_gallery_get_result = performSearch;
 </script>
 </body>
