@@ -11,28 +11,32 @@ async function performSearch(data) {
     query = data;
   }
 
-  // We add &callback=res to use JSONP logic which is more sandbox-friendly
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&callback=res&no_redirect=1`;
+  // We use the JSONP format (callback) because it's often exempted from strict CORS
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&callback=jsonp_callback`;
 
   try {
     const response = await fetch(url);
-    const text = await response.text();
+    const rawText = await response.text();
     
-    // JSONP returns "res({ ... });", so we need to strip the "res(" and ");"
-    const jsonString = text.replace(/^res\(|\);$/g, '');
-    const resultData = JSON.parse(jsonString);
+    // DuckDuckGo returns "jsonp_callback({ ... });"
+    // We strip the wrapper to get the JSON
+    const jsonString = rawText.substring(rawText.indexOf('(') + 1, rawText.lastIndexOf(')'));
+    const result = JSON.parse(jsonString);
 
-    if (resultData.AbstractText) {
-      return resultData.AbstractText;
-    } else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
-      return resultData.RelatedTopics[0].Text;
+    let finalResult = "";
+    if (result.AbstractText) {
+      finalResult = result.AbstractText;
+    } else if (result.RelatedTopics && result.RelatedTopics.length > 0) {
+      finalResult = result.RelatedTopics[0].Text;
     }
-    
-    return "No instant results found for " + query;
+
+    // Return the string directly to the model
+    return finalResult || "No instant answer available for: " + query;
 
   } catch (error) {
-    // If this hits, the Sandbox is blocking all HTTPS traffic to DDG
-    return "Connection Blocked: The app sandbox is preventing the search call.";
+    // If this fails, the sandbox is blocking public HTTPS. 
+    // This is when you should switch to your Tailscale + SearXNG IP.
+    return "Network error: The app sandbox is preventing the search. Try using your local server skill.";
   }
 }
 
