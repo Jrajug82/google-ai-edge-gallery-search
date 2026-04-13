@@ -1,6 +1,14 @@
 ---
 name: web_search
 description: "Executes a real-time web search for Telangana news, stamp duty, and property laws using DuckDuckGo."
+
+## Instructions
+
+Call the `run_js` tool with the following exact parameters:
+- script name: index.html
+- data: A JSON string with the following field:
+- text: String. The text to calculate hash for.
+
 actions:
   - name: web_search
     description: "Search the internet for current information"
@@ -10,6 +18,7 @@ actions:
         description: "The search keywords"
         required: true
 ---
+
 
 # Web Search Skill
 1. **Trigger:** Use this skill whenever the user asks about current events, local Hyderabad news, or real-time property data.
