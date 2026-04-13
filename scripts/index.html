@@ -2,37 +2,43 @@
 <html>
 <body>
 <script>
-async function performSearch(data) {
+async function performSearch(input) {
   let query;
   try {
-    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-    query = parsed.search_keywords || parsed.query || data;
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+    query = parsed.search_keywords || parsed.query || input;
   } catch (e) {
-    query = data;
+    query = input;
   }
 
-  // Use your Tailscale IP
-  const url = `http://100.99.195.105:3400/search?q=${encodeURIComponent(query)}&format=json`;
+  return new Promise((resolve) => {
+    // 1. Create a unique callback name
+    const callbackName = 'ddg_callback_' + Math.floor(Math.random() * 1000);
+    
+    // 2. Define the callback function on the window
+    window[callbackName] = function(data) {
+      delete window[callbackName]; // Clean up
+      document.body.removeChild(script); // Clean up
+      
+      if (data.AbstractText) {
+        resolve(data.AbstractText);
+      } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+        resolve(data.RelatedTopics[0].Text);
+      } else {
+        resolve("No instant answer found for: " + query);
+      }
+    };
 
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      mode: 'no-cors', // Helps bypass sandbox restrictions
-      cache: 'no-cache'
-    });
-
-    // Note: 'no-cors' might return an opaque response. 
-    // If that happens, we'll try a standard fetch with a shorter timeout.
-    const resultData = await response.json();
-
-    if (resultData.results && resultData.results.length > 0) {
-      return resultData.results.slice(0, 2).map(r => `${r.title}: ${r.content}`).join("\n\n");
-    }
-    return "No results found on local server.";
-  } catch (error) {
-    return "Sandbox Network Error: " + error.message;
-  }
+    // 3. Use JSONP (?callback=...) to bypass CORS
+    const script = document.createElement('script');
+    script.src = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&callback=${callbackName}`;
+    script.onerror = () => resolve("Network error: The search service is unreachable.");
+    
+    document.body.appendChild(script);
+  });
 }
+
+// Map it to the Gallery's required entry point
 window.ai_edge_gallery_get_result = performSearch;
 </script>
 </body>
