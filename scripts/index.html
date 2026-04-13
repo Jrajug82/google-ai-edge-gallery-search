@@ -1,45 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head></head>
+
 <body>
-<script>
-async function performSearch(input) {
-  let query;
-  try {
-    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
-    query = parsed.search_keywords || parsed.query || input;
-  } catch (e) {
-    query = input;
-  }
+    <script>
+        window['ai_edge_gallery_get_result'] = async (data) => {
+            try {
+                const jsonData = JSON.parse(data);
+                const processedData = await yourImplementation(jsonData.text);
 
-  return new Promise((resolve) => {
-    // 1. Create a unique callback name
-    const callbackName = 'ddg_callback_' + Math.floor(Math.random() * 1000);
-    
-    // 2. Define the callback function on the window
-    window[callbackName] = function(data) {
-      delete window[callbackName]; // Clean up
-      document.body.removeChild(script); // Clean up
-      
-      if (data.AbstractText) {
-        resolve(data.AbstractText);
-      } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-        resolve(data.RelatedTopics[0].Text);
-      } else {
-        resolve("No instant answer found for: " + query);
-      }
-    };
+                return JSON.stringify({
+                    result: processedData
+                });
+            } catch (e) {
+                console.error(e);
+                return JSON.stringify({
+                    error: `Failed: ${e.message}`
+                });
+            }
+        };
 
-    // 3. Use JSONP (?callback=...) to bypass CORS
-    const script = document.createElement('script');
-    script.src = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&callback=${callbackName}`;
-    script.onerror = () => resolve("Network error: The search service is unreachable.");
-    
-    document.body.appendChild(script);
-  });
-}
-
-// Map it to the Gallery's required entry point
-window.ai_edge_gallery_get_result = performSearch;
-</script>
+        async function yourImplementation(text) {
+            return text + " processed!";
+        }
+    </script>
 </body>
+
 </html>
