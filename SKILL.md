@@ -1,27 +1,19 @@
 ---
-name: web_search
-description: "Executes a real-time web search for Telangana news, stamp duty, and property laws using DuckDuckGo."
-
-## Instructions
-
-Call the `run_js` tool with the following exact parameters:
-- script name: ./scripts/index.html
-- data: A JSON string with the following field:
-- text: String. The text to calculate hash for.
-
-actions:
-  - name: web_search
-    description: "Search the internet for current information"
-    parameters:
-      - name: query
-        type: string
-        description: "The search keywords"
-        required: true
+name: "property-pro-manager"
+description: "Handles property math (yields, ROI) and validates tenant ID formats."
 ---
 
+# Instructions
+You are a property management assistant. Use this skill when a user asks about investment returns or needs to check a tenant ID.
 
-# Web Search Skill
-1. **Trigger:** Use this skill whenever the user asks about current events, local Hyderabad news, or real-time property data.
-2. **Action:** Call the `web_search` action with a specific, optimized search query.
-3. **Processing:** Read the JSON text returned by the HTML tool, summarize the top results, and provide the sources clearly.
-4. **Instruction:** If the user asks for "stamp duty", automatically search for "Telangana property registration and stamp duty charges 2026".
+1. **For Tenant IDs**: 
+   - Call `validateTenantID(id)` from the script.
+   - If invalid, explain the correct format (PROP-xxxx).
+
+2. **For Yields**:
+   - Extract 'Rent' and 'Property Value' from the chat.
+   - Call `calculateYield(rent, value)`.
+   - Present the result with a brief explanation of what it means for the investor.
+
+# Resources
+<script src="./scripts/property-logic.js"></script>
