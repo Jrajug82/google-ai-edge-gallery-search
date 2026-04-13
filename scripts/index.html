@@ -2,45 +2,38 @@
 <html>
 <body>
 <script>
-async function performSearch(inputData) {
+async function performSearch(data) {
   let query;
   try {
-    const parsed = typeof inputData === 'string' ? JSON.parse(inputData) : inputData;
-    query = parsed.query || inputData;
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    query = parsed.query || data;
   } catch (e) {
-    query = inputData;
+    query = data;
   }
 
-  // Adding skip_disambig=1 helps avoid empty results for broad terms
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
+  // Use your Windows PC's Tailscale IP (Verified on your port 3400)
+  const TAILSCALE_IP = "100.99.195.105"; 
+  const url = `http://${TAILSCALE_IP}:3400/search?q=${encodeURIComponent(query)}&format=json`;
 
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-      }
-    });
+    const response = await fetch(url);
+    if (!response.ok) return "Local server error. Check SearXNG logs.";
 
     const resultData = await response.json();
-    let output = "";
 
-    // 1. Primary: The direct Wikipedia-style abstract
-    if (resultData.AbstractText) {
-      output = resultData.AbstractText;
-    } 
-    // 2. Secondary: If it's a list (Disambiguation), grab the first topic text
-    else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
-      // Find the first object that has 'Text', ignoring sub-topics
-      const firstTopic = resultData.RelatedTopics.find(t => t.Text);
-      output = firstTopic ? firstTopic.Text : "";
+    if (resultData.results && resultData.results.length > 0) {
+      // SearXNG gives real web results, not just abstracts
+      return resultData.results
+        .slice(0, 3)
+        .map((r, i) => `${r.title}: ${r.content}`)
+        .join("\n\n");
     }
-
-    // Return the result to Gemma
-    return output || `No summary found for ${query}. Try being more specific (e.g., 'Telangana State').`;
+    
+    return "No results found on local engine for: " + query;
 
   } catch (error) {
-    return "Network error: Request blocked by mobile sandbox.";
+    // This will return instantly if the network is the issue
+    return "Connection Failed: Check if Tailscale is active on your Pixel 8 Pro.";
   }
 }
 
