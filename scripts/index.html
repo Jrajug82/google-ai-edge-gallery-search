@@ -11,7 +11,7 @@ async function performSearch(inputData) {
     query = inputData;
   }
 
-  // We add 'skip_disambig=1' to force a result even if the term is broad
+  // Adding skip_disambig=1 helps avoid empty results for broad terms
   const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
 
   try {
@@ -25,22 +25,22 @@ async function performSearch(inputData) {
     const resultData = await response.json();
     let output = "";
 
-    // 1. Try for the Main Abstract (The best result)
+    // 1. Primary: The direct Wikipedia-style abstract
     if (resultData.AbstractText) {
       output = resultData.AbstractText;
     } 
-    // 2. FALLBACK: If Abstract is empty, use the first 'Related Topic'
+    // 2. Secondary: If it's a list (Disambiguation), grab the first topic text
     else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
-      // Find the first item that has a 'Text' property
-      const topic = resultData.RelatedTopics.find(t => t.Text);
-      output = topic ? topic.Text : "";
+      // Find the first object that has 'Text', ignoring sub-topics
+      const firstTopic = resultData.RelatedTopics.find(t => t.Text);
+      output = firstTopic ? firstTopic.Text : "";
     }
 
-    // 3. Last Resort
-    return output || `I found no instant summary for ${query}. Try searching for something more specific.`;
+    // Return the result to Gemma
+    return output || `No summary found for ${query}. Try being more specific (e.g., 'Telangana State').`;
 
   } catch (error) {
-    return "Network error: The search API is unreachable in this sandbox.";
+    return "Network error: Request blocked by mobile sandbox.";
   }
 }
 
