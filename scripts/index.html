@@ -2,46 +2,45 @@
 <html>
 <body>
 <script>
-async function performSearch(data) {
+async function performSearch(inputData) {
   let query;
   try {
-    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-    query = parsed.query || data;
+    const parsed = typeof inputData === 'string' ? JSON.parse(inputData) : inputData;
+    query = parsed.query || inputData;
   } catch (e) {
-    query = data;
+    query = inputData;
   }
 
-  // We use a CORS proxy to bypass the mobile sandbox restriction
-  const proxy = "https://corsproxy.io/?";
-  const target = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
-  const url = proxy + encodeURIComponent(target);
+  // We add 'skip_disambig=1' to force a result even if the term is broad
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
       }
     });
-
-    if (!response.ok) return "Search engine connection blocked.";
 
     const resultData = await response.json();
     let output = "";
 
-    // Priority 1: AbstractText (Direct Answer)
+    // 1. Try for the Main Abstract (The best result)
     if (resultData.AbstractText) {
       output = resultData.AbstractText;
     } 
-    // Priority 2: Related Topics (Snippets)
+    // 2. FALLBACK: If Abstract is empty, use the first 'Related Topic'
     else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
-      output = resultData.RelatedTopics[0].Text;
+      // Find the first item that has a 'Text' property
+      const topic = resultData.RelatedTopics.find(t => t.Text);
+      output = topic ? topic.Text : "";
     }
 
-    return output || "No instant answer found for: " + query;
+    // 3. Last Resort
+    return output || `I found no instant summary for ${query}. Try searching for something more specific.`;
 
   } catch (error) {
-    return "Network error: The sandbox is still blocking public API calls.";
+    return "Network error: The search API is unreachable in this sandbox.";
   }
 }
 
