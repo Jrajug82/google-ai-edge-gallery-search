@@ -3,60 +3,52 @@
 <body>
 <script>
 async function performSearch(data) {
-   let query;
+  let query;
   try {
-    query = JSON.parse(data).query;
+    // Check if the input is a JSON string or raw text
+    const parsed = JSON.parse(data);
+    query = parsed.query || data;
   } catch (e) {
     query = data;
   }
 
-  // Formatting for the specific Instant Answer API
   const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        // This User-Agent is the most critical part to avoid the 403 error
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://duckduckgo.com/'
+        'Accept': 'application/json'
       }
     });
 
     if (!response.ok) {
-      process.stdout.write(`DDG Error: ${response.status} - Try using your SearXNG skill instead.`);
-      return;
+      return `Error: DuckDuckGo returned status ${response.status}`;
     }
 
-    const data = await response.json();
+    const resultData = await response.json();
     let output = "";
 
-    // Priority 1: Abstract (Wikipedia style)
-    if (data.AbstractText) {
-      output = `[Source: ${data.AbstractSource}]\n${data.AbstractText}`;
-    } 
-    // Priority 2: Related Topics (Snippets)
-    else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      output = data.RelatedTopics
+    if (resultData.AbstractText) {
+      output = `[Source: ${resultData.AbstractSource}]\n${resultData.AbstractText}`;
+    } else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
+      output = resultData.RelatedTopics
         .filter(t => t.Text)
         .slice(0, 3)
         .map((t, i) => `${i + 1}. ${t.Text}`)
         .join("\n\n");
     }
 
-    if (!output) {
-      process.stdout.write("DuckDuckGo has no Instant Answer for this. Try a broader term.");
-    } else {
-      process.stdout.write(output);
-    }
+    // CRITICAL: You must return the string so the AI model can read it
+    return output || "No instant answer found for this query.";
 
   } catch (error) {
-    process.stdout.write("Diagnostic: Network timeout or SSL issue in the tool sandbox.");
+    return "Network error: The sandbox blocked the request or the URL is unreachable.";
   }
 }
 
+// Ensure the function is attached to the window for the AI Edge Gallery to call
 window.ai_edge_gallery_get_result = performSearch;
 </script>
 </body>
