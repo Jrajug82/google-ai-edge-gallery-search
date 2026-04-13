@@ -5,50 +5,37 @@
 async function performSearch(data) {
   let query;
   try {
-    // Check if the input is a JSON string or raw text
     const parsed = JSON.parse(data);
     query = parsed.query || data;
   } catch (e) {
     query = data;
   }
 
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&skip_disambig=1`;
+  // We add &callback=res to use JSONP logic which is more sandbox-friendly
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&callback=res&no_redirect=1`;
 
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      return `Error: DuckDuckGo returned status ${response.status}`;
-    }
-
-    const resultData = await response.json();
-    let output = "";
+    const response = await fetch(url);
+    const text = await response.text();
+    
+    // JSONP returns "res({ ... });", so we need to strip the "res(" and ");"
+    const jsonString = text.replace(/^res\(|\);$/g, '');
+    const resultData = JSON.parse(jsonString);
 
     if (resultData.AbstractText) {
-      output = `[Source: ${resultData.AbstractSource}]\n${resultData.AbstractText}`;
+      return resultData.AbstractText;
     } else if (resultData.RelatedTopics && resultData.RelatedTopics.length > 0) {
-      output = resultData.RelatedTopics
-        .filter(t => t.Text)
-        .slice(0, 3)
-        .map((t, i) => `${i + 1}. ${t.Text}`)
-        .join("\n\n");
+      return resultData.RelatedTopics[0].Text;
     }
-
-    // CRITICAL: You must return the string so the AI model can read it
-    return output || "No instant answer found for this query.";
+    
+    return "No instant results found for " + query;
 
   } catch (error) {
-    return "Network error: The sandbox blocked the request or the URL is unreachable.";
+    // If this hits, the Sandbox is blocking all HTTPS traffic to DDG
+    return "Connection Blocked: The app sandbox is preventing the search call.";
   }
 }
 
-// Ensure the function is attached to the window for the AI Edge Gallery to call
 window.ai_edge_gallery_get_result = performSearch;
 </script>
 </body>
