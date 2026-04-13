@@ -1,45 +1,49 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="utf-8">
+</head>
 <body>
 <script>
-async function performSearch(data) {
-  let query;
-  try {
-    const parsed = JSON.parse(data);
-    query = parsed.query || data;
-  } catch (e) {
-    query = data;
-  }
-
-  // We use the JSONP format (callback) because it's often exempted from strict CORS
-  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&callback=jsonp_callback`;
-
-  try {
-    const response = await fetch(url);
-    const rawText = await response.text();
-    
-    // DuckDuckGo returns "jsonp_callback({ ... });"
-    // We strip the wrapper to get the JSON
-    const jsonString = rawText.substring(rawText.indexOf('(') + 1, rawText.lastIndexOf(')'));
-    const result = JSON.parse(jsonString);
-
-    let finalResult = "";
-    if (result.AbstractText) {
-      finalResult = result.AbstractText;
-    } else if (result.RelatedTopics && result.RelatedTopics.length > 0) {
-      finalResult = result.RelatedTopics[0].Text;
+async function performSearch(inputData) {
+    let query = "";
+    try {
+        // Handle both JSON string and raw string inputs
+        const parsed = typeof inputData === 'string' ? JSON.parse(inputData) : inputData;
+        query = parsed.query || inputData;
+    } catch (e) {
+        query = inputData;
     }
 
-    // Return the string directly to the model
-    return finalResult || "No instant answer available for: " + query;
+    // Use a very simple, fast API endpoint
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1`;
 
-  } catch (error) {
-    // If this fails, the sandbox is blocking public HTTPS. 
-    // This is when you should switch to your Tailscale + SearXNG IP.
-    return "Network error: The app sandbox is preventing the search. Try using your local server skill.";
-  }
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) return "Search engine is temporarily unavailable.";
+
+        const data = await response.json();
+        
+        // Prioritize AbstractText, then RelatedTopics
+        if (data.AbstractText) {
+            return data.AbstractText;
+        } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+            return data.RelatedTopics[0].Text;
+        }
+        
+        return "No instant summary found for " + query;
+
+    } catch (error) {
+        // If this returns, the mobile sandbox is blocking the HTTPS call
+        return "Network restriction: Please use the local SearXNG skill via Tailscale.";
+    }
 }
 
+// Attach to window for the Gallery app to find
 window.ai_edge_gallery_get_result = performSearch;
 </script>
 </body>
