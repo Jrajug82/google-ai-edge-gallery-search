@@ -1,19 +1,28 @@
 ---
-name: "property-pro-manager"
-description: "Handles property math (yields, ROI) and validates tenant ID formats."
+name: "unit-converter-pro"
+description: "Converts property area units (Sq Ft to Sq Yards) and calculates basic yields."
 ---
 
 # Instructions
-You are a property management assistant. Use this skill when a user asks about investment returns or needs to check a tenant ID.
-
-1. **For Tenant IDs**: 
-   - Call `validateTenantID(id)` from the script.
-   - If invalid, explain the correct format (PROP-xxxx).
-
-2. **For Yields**:
-   - Extract 'Rent' and 'Property Value' from the chat.
-   - Call `calculateYield(rent, value)`.
-   - Present the result with a brief explanation of what it means for the investor.
+When the user asks to convert property area or calculate rent yield:
+1. Identify the numerical inputs.
+2. Call the internal JavaScript functions.
+3. Present the result in a professional .NET-style log format.
 
 # Resources
-<script src="./scripts/property-logic.js"></script>
+<script>
+/**
+ * Global function called by the AI
+ */
+function convertToSqYards(sqFt) {
+    return (sqFt / 9).toFixed(2) + " Sq Yards";
+}
+
+function calcYield(monthlyRent, totalCost) {
+    const annual = monthlyRent * 12;
+    return ((annual / totalCost) * 100).toFixed(2) + "%";
+}
+</script>
+
+# Call Pattern
+[CALL: convertToSqYards(900)]
